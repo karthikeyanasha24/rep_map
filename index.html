@@ -454,9 +454,9 @@
 // Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { FIPS or NAME }, geometry }] }
 
     const regionSources = {
-      us: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/counties.geojson',
-      canada: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/canada.geojson',
-      caribbean: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/caribbean.geojson'
+      us: 'counties.geojson',
+      canada: 'canada.geojson',
+      caribbean: 'caribbean.geojson'
     };
 
     const regionReps = {
@@ -579,7 +579,7 @@
 // Expected data structure: GeoJSON FeatureCollection with features containing { FIPS, NAME, geometry }
 // Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { FIPS, NAME }, geometry }] }
 
-    fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/counties.geojson')
+    fetch('counties.geojson')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch counties.geojson for mapping');
         return res.json();
@@ -600,7 +600,7 @@
 // Expected data structure: Array of objects with fields like { stateAbbr, county, rep }
 // Ensure the response is parsed to match the current CSV structure: [stateAbbr, zip, county, ..., rep]
 
-        return fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/Zip_Code_County_Assignments_with_FIPS.csv')
+        return fetch('Zip_Code_County_Assignments_with_FIPS.csv')
           .then(res => {
             if (!res.ok) throw new Error('Failed to fetch Zip_Code_County_Assignments_with_FIPS.csv');
             return res.text();
@@ -1133,7 +1133,7 @@
 // Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { STATEFP, NAME }, geometry }] }
 
           if (region === 'us') {
-            fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/states.geojson')
+            fetch('states.geojson')
               .then(res => {
                 if (!res.ok) throw new Error('Failed to fetch states.geojson');
                 return res.json();
