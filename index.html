@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MapLibre Interactive Map with State Borders</title>
+  <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700&display=swap" rel="stylesheet" />
+   <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #000000;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+      background-color: #1E1E1E;
+    }
+
+    #region-selector {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      background: transparent;
+      color: #FFFFFF;
+      border: none;
+      display: none;
+    }
+
+    .region-buttons {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .region-buttons button {
+      background: transparent;
+      border: none;
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 16px;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      padding: 5px 0;
+      text-transform: capitalize;
+      transition: color 0.3s ease, opacity 0.3s ease;
+    }
+
+    .region-buttons button.inactive {
+      color: #A0A0A0;
+      opacity: 0.6;
+    }
+
+    .region-buttons button.active {
+      opacity: 0.6;
+    }
+
+    .region-buttons button:hover:not(.active):not(.inactive) {
+      color: #E0E0E0;
+    }
+
+    .region-buttons .divider {
+      color: #A0A0A0;
+      font-size: 16px;
+      font-weight: 300;
+      margin: 0 5px;
+    }
+
+    .overlay-text {
+      position: absolute;
+      top: 50%;
+      left: 65%;
+      transform: translateY(-50%);
+      color: #FFFFFF;
+      z-index: 999;
+      font-family: 'Manrope', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      max-width: 450px;
+      text-align: left;
+    }
+
+    .overlay-text p {
+      margin: 0;
+      font-size: 14px;
+      color: #999999;
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: 0.05em;
+      text-align: left;
+    }
+
+    .overlay-text h2 {
+      margin: 2px 0;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+      text-align: left;
+    }
+
+    .sidebar-button {
+      margin-top: 8px;
+      background-color: #FC611D;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 5px;
+      padding: 8px 16px;
+      font-family: 'Manrope', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      align-self: flex-start;
+      display: none;
+    }
+
+    .sidebar-button:hover {
+      background-color: #e6951f;
+    }
+
+    .find-rep-button {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      background-color: #FC611D;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 5px;
+      padding: 8px 16px;
+      font-family: 'Manrope', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .find-rep-button:hover {
+      background-color: #e6951f;
+    }
+
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      Search: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .popup-content {
+      background: #FFFFFF;
+      padding: 20px;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 500px;
+      position: relative;
+      font-family: Arial, sans-serif;
+    }
+
+    .popup-content h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .popup-content input {
+      width: calc(100% - 20px);
+      padding: 8px;
+      margin: 10px 0;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .popup-content .error-message {
+      color: #FC611D;
+      font-size: 14px;
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+
+    .popup-content .result-list {
+      margin: 20px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .popup-content .result-list div {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .popup-content .result-list div:last-child {
+      border-bottom: none;
+    }
+
+    .popup-content button {
+      padding: 8px 16px;
+      font-size: 16px;
+      margin: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+    }
+
+    .popup-content .submit-btn {
+      background-color: #FC611D;
+      color: white;
+    }
+
+    .popup-content .submit-btn:hover {
+      background-color: #e6951f;
+    }
+
+    .popup-content .reset-btn {
+      background-color: #FC611D;
+      color: white;
+    }
+
+    .popup-content .reset-btn:hover {
+      background-color: #e6951f;
+    }
+
+    .popup-content .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #FC611D;
+      color: white;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .popup-content .close-btn:hover {
+      background-color: #e6951f;
+    }
+
+    @media (max-width: 768px) {
+      #region-selector {
+        top: 10px;
+        padding: 10px 20px;
+        font-size: 16px;
+      }
+
+      .region-buttons {
+        top: 10px;
+        flex-direction: row;
+        gap: 15px;
+        width: 90%;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .region-buttons button {
+        font-size: 16px;
+        padding: 10px 15px;
+        min-width: 80px;
+        text-align: center;
+      }
+
+      .region-buttons .divider {
+        font-size: 16px;
+        margin: 0 2px;
+      }
+
+      .find-rep-button {
+        top: 110px;
+      }
+
+      .overlay-text {
+        top: auto;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 90%;
+        align-items: center;
+        text-align: center;
+        padding: 10px 15px;
+        background: rgba(0, 0, 0, 0.9);
+        border: 2px solid #444;
+        border-radius: 12px;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .overlay-text:hover {
+        transform: translateX(-50%) scale(1.03);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.7);
+      }
+
+      .overlay-text.mobile p {
+        font-size: 14px;
+        color: #CCCCCC;
+        margin: 0;
+        padding: 5px 10px;
+        border-right: 1px solid #555;
+      }
+
+      .overlay-text h2 {
+        font-size: 16px;
+        margin: 0;
+        padding: 5px 10px;
+        border-right: 1px solid #555;
+      }
+
+      .sidebar-button {
+        font-size: 12px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        margin: 0;
+      }
+
+      .popup-content {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <select id="region-selector">
+    <option value="us">United States</option>
+    <option value="canada">Canada</option>
+    <option value="caribbean">Caribbean</option>
+  </select>
+
+  <div class="region-buttons">
+    <button id="us-btn" class="active"
+      onclick="document.getElementById('region-selector').value='us'; document.getElementById('region-selector').dispatchEvent(new Event('change'));">USA</button>
+    <span class="divider">|</span>
+    <button id="canada-btn"
+      onclick="document.getElementById('region-selector').value='canada'; document.getElementById('region-selector').dispatchEvent(new Event('change'));">CANADA</button>
+    <span class="divider">|</span>
+    <button id="caribbean-btn"
+      onclick="document.getElementById('region-selector').value='caribbean'; document.getElementById('region-selector').dispatchEvent(new Event('change'));">CARIBBEAN</button>
+  </div>
+
+  <button class="find-rep-button" onclick="openPopup()">Find a Rep with Your Zip Code</button>
+
+  <div id="map"></div>
+
+  <div class="overlay-text" id="map-sidebar">
+    <p id="location-name">Hover on your county</p>
+    <h2 id="rep-name">Find a Representative</h2>
+    <button class="sidebar-button" id="sidebar-button">Contact</button>
+  </div>
+
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-content">
+      <span class="close-btn" onclick="closePopup()">×</span>
+      <h2>Find a Rep with Your Zip Code</h2>
+      <input type="text" id="zipInput" placeholder="Enter ZIP Code" maxlength="5">
+      <div class="error-message" id="errorMessage"></div>
+      <div class="result-list" id="resultList"></div>
+      <button class="submit-btn" onclick="lookupZip()">Submit</button>
+      <button class="reset-btn" onclick="resetPopup()">Reset</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+  <script>
+    const repColorMapping = {
+      'Sonder & Associates': '#244c60',
+      '808 Building Supplies': '#f7aa4b',
+      'Ecomaxx BP': '#3EA0C6',
+      'EmLi, Inc.': '#ef5f2c',
+      'Engineered Systems': '#f7aa4b',
+      'Florida Building Envelope Associates': '#f7aa4b',
+      'GIE LTD.': '#ef602d',
+      'GIE Ltd.': '#ef602d',
+      'Northeast': '#377594',
+      'Northeast Envelope Solutions': '#244c60',
+      'MCQ-WBS': '#295f72',
+      'Northstar Sales Associates': '#377594',
+      'Open Air Products': '#295f72',
+      'Palmer Marketing Inc': '#f7aa4b',
+      'Pro-Fit Sales Associates': '#8B7355',
+      'Roof Source Inc': '#244c60',
+      'Vertical Integrated Solutions': '#ef602d'
+    };
+    const stateGrayMapping = {
+      '01': '#262625', '02': '#434140', '04': '#3E3C3B', '05': '#343333', '06': '#343333',
+      '08': '#1E1E1E', '09': '#434140', '10': '#5D5A59', '12': '#686767', '13': '#3A3837',
+      '15': '#524F4F', '16': '#2B2A2A', '17': '#3A3837', '18': '#4D4A4A', '19': '#434140',
+      '20': '#3E3C3B', '21': '#2B2A2A', '22': '#343333', '23': '#333232', '24': '#343333',
+      '25': '#343333', '26': '#3A3837', '27': '#3A3837', '28': '#524F4F', '29': '#1E1E1E',
+      '30': '#3A3837', '31': '#343333', '32': '#3E3C3B', '33': '#262625', '34': '#262625',
+      '35': '#343333', '36': '#302F2E', '37': '#343333', '38': '#262625', '39': '#343333',
+      '40': '#2B2A2A', '41': '#484645', '42': '#434140', '44': '#5D5A59', '45': '#524F4F',
+      '46': '#2B2A2A', '47': '#434140', '48': '#434140', '49': '#302F2E', '50': '#434140',
+      '51': '#524F4F', '53': '#3E3C3B', '54': '#262625', '55': '#2B2A2A', '56': '#434140'
+    };
+
+    const NA_COLOR = '#eaebeb';
+    const UNKNOWN_REP_COLOR = '#696969';
+
+    let currentRegion = 'us';
+    let geojson = null;
+    const repMap = new Map();
+    const repColorMap = new Map();
+    const repToCountyIds = new Map();
+    const fipsToCountyMap = new Map();
+    let selectedCountyId = null;
+    let isHoverEnabled = true;
+    let tapCount = 0;
+    let lastTapTime = 0;
+    const doubleTapDelay = 300;
+    // NOTE: This is where the geographic data for the selected region is fetched.
+// Currently, it uses a region-specific GeoJSON file (e.g., 'counties.geojson', 'canada.geojson', or 'caribbean.geojson').
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: GeoJSON FeatureCollection with features containing { FIPS or NAME, geometry }
+// Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { FIPS or NAME }, geometry }] }
+
+    const regionSources = {
+      us: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/counties.geojson',
+      canada: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/canada.geojson',
+      caribbean: 'https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/caribbean.geojson'
+    };
+
+    const regionReps = {
+      canada: 'Ecomaxx BP',
+      caribbean: 'Florida Building Envelope Associates'
+    };
+
+    const mobileRegionView = {
+      us: { center: [-2, 35], zoom: 0.3, minZoom: 0.3, maxZoom: 3 },
+      canada: { center: [-110, 55], zoom: 0.15, minZoom: 0.15, maxZoom: 4 },
+      caribbean: { center: [-75, 20], zoom: 0.8, minZoom: 0.8, maxZoom: 6 }
+    };
+
+    const laptopRegionView = {
+      us: { center: [-100, 85], zoom: 0.7, minZoom: 0.7, maxZoom: 8 },
+      canada: { center: [-110, 71], zoom: 0.35, minZoom: 0.35, maxZoom: 6 },
+      caribbean: { center: [-75, 20], zoom: 1.2, minZoom: 1.2, maxZoom: 8 }
+    };
+    const regionView = isMobileDevice() ? mobileRegionView : laptopRegionView;
+
+    console.log(`Device type: ${isMobileDevice() ? 'Mobile' : 'Laptop'}`);
+    console.log(`Initial USA zoom: ${regionView.us.zoom}, center: ${regionView.us.center}`);
+    console.log(`Initial Canada zoom: ${regionView.canada.zoom}, center: ${regionView.canada.center}`);
+    console.log(`Initial Caribbean zoom: ${regionView.caribbean.zoom}, center: ${regionView.caribbean.center}`);
+
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    }
+
+    const regionInitialColors = {
+      us: '#4A4A4A',
+      canada: '#393737',
+      caribbean: '#524F4F'
+    };
+
+    const regionHoverText = {
+      us: isMobileDevice() ? 'Tap on a county' : 'Hover on your county',
+      canada: isMobileDevice() ? 'Tap on a province' : 'Hover on your province',
+      caribbean: isMobileDevice() ? 'Tap on a country' : 'Hover on your country'
+    };
+
+    const stateCodeMap = {
+      AL: '01', AK: '02', AZ: '04', AR: '05', CA: '06', CO: '08', CT: '09', DE: '10', FL: '12', GA: '13',
+      HI: '15', ID: '16', IL: '17', IN: '18', IA: '19', KS: '20', KY: '21', LA: '22', ME: '23', MD: '24',
+      MA: '25', MI: '26', MN: '27', MS: '28', MO: '29', MT: '30', NE: '31', NV: '32', NH: '33', NJ: '34',
+      NM: '35', NY: '36', NC: '37', ND: '38', OH: '39', OK: '40', OR: '41', PA: '42', RI: '44', SC: '45',
+      SD: '46', TN: '47', TX: '48', UT: '49', VT: '50', VA: '51', WA: '53', WV: '54', WI: '55', WY: '56'
+    };
+
+    function parseCSVLine(line) {
+      const parts = [];
+      let current = '';
+      let inQuotes = false;
+
+      line = line.replace(/\r$/, '');
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+
+        if (char === ',' && !inQuotes) {
+          parts.push(current);
+          current = '';
+          continue;
+        }
+
+        current += char;
+      }
+
+      parts.push(current);
+      return parts.map(part => part.replace(/^"|"$/g, '').trim());
+    }
+
+    const darkStyle = {
+      "version": 8,
+      "sources": {
+        "osm": {
+          "type": "raster",
+          "tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          "tileSize": 256,
+          "attribution": "© OpenStreetMap contributors"
+        }
+      },
+      "layers": [
+        {
+          "id": "background",
+          "type": "background",
+          "paint": {
+            "background-color": "#1E1E1E"
+          }
+        },
+        {
+          "id": "osm",
+          "type": "raster",
+          "source": "osm",
+          "paint": {
+            "raster-opacity": 0
+          }
+        }
+      ]
+    };
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: darkStyle,
+      center: regionView.us.center,
+      zoom: regionView.us.zoom,
+      minZoom: regionView.us.minZoom,
+      maxZoom: regionView.us.maxZoom
+    });
+    // NOTE: This is where the geographic data for counties is fetched.
+// Currently, it uses 'counties.geojson' to load county boundaries and properties.
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: GeoJSON FeatureCollection with features containing { FIPS, NAME, geometry }
+// Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { FIPS, NAME }, geometry }] }
+
+    fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/counties.geojson')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch counties.geojson for mapping');
+        return res.json();
+      })
+      .then(geojson => {
+        geojson.features.forEach(feature => {
+          const fipsCode = feature.properties.FIPS;
+          const countyName = feature.properties.NAME;
+          if (fipsCode && countyName) {
+            fipsToCountyMap.set(fipsCode, countyName);
+          }
+        });
+
+        // NOTE: This is where the data source for representative zip code assignments is fetched.
+// Currently, it uses 'Zip_Code_County_Assignments.csv' to map zip codes to counties and representatives.
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: Array of objects with fields like { stateAbbr, county, rep }
+// Ensure the response is parsed to match the current CSV structure: [stateAbbr, zip, county, ..., rep]
+
+        return fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/Zip_Code_County_Assignments_with_FIPS.csv')
+          .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch Zip_Code_County_Assignments_with_FIPS.csv');
+            return res.text();
+          })
+          .then(text => {
+            const lines = text.trim().split('\n');
+            lines.shift();
+            for (const line of lines) {
+              const parts = parseCSVLine(line);
+              const stateAbbr = parts[0];
+              const fipsCode = `US${parts[5]}`; // FIPS code from last column, prefixed with "US"
+              const rep = parts[4] || '';
+              if (!stateCodeMap[stateAbbr] || !fipsCode) continue;
+
+              repMap.set(fipsCode, rep);
+              if (!repColorMap.has(rep)) {
+                repColorMap.set(rep, rep ? repColorMapping[rep] || UNKNOWN_REP_COLOR : NA_COLOR);
+              }
+            }
+            repMap.set("USA-29189", "GIE Ltd.");
+            repMap.set("USA-51067", "MCQ-WBS");
+            repMap.set("USA-51161", "MCQ-WBS");
+            repMap.set("USA-51059", "MCQ-WBS");
+            repMap.set("USA-51159", "MCQ-WBS");
+            repMap.set("USA-24510", "MCQ-WBS");
+            repMap.set("USA-11001", "MCQ-WBS");
+            repMap.set("USA-51580", "MCQ-WBS");
+            repMap.set("USA-51678", "MCQ-WBS");
+            repMap.set("USA-51595", "MCQ-WBS");
+            repMap.set("USA-29510", "GIE Ltd.");
+          })
+          .then(() => {
+            map.setCenter(regionView[currentRegion].center);
+            map.setZoom(regionView[currentRegion].zoom);
+            console.log(`Initial map zoom set to ${map.getZoom()} with center ${map.getCenter()}`);
+            loadRegion(currentRegion);
+          });
+      })
+      .catch(err => {
+        console.error('Error loading files:', err);
+      });
+
+    map.on('load', () => {
+      const sidebar = document.getElementById('map-sidebar');
+      const locationName = document.getElementById('location-name');
+      const repName = document.getElementById('rep-name');
+      const sidebarButton = document.getElementById('sidebar-button');
+
+      map.on('dblclick', (e) => {
+        e.preventDefault();
+      });
+
+      if (!isMobileDevice()) {
+        map.on('mousemove', 'counties-fill', (e) => {
+          if (!map.getSource('counties') || !geojson || !isHoverEnabled) {
+            console.warn('Hover disabled or no counties source/geojson available');
+            return;
+          }
+          map.getCanvas().style.cursor = 'pointer';
+          const feature = e.features[0];
+          const fipsCode = feature.properties.FIPS;
+          const rep = currentRegion === 'us' ? repMap.get(fipsCode) || 'N/A' : regionReps[currentRegion];
+          let displayName = feature.properties.NAME || currentRegion.toUpperCase();
+          if (currentRegion === 'us' && displayName) {
+            displayName = `${displayName} County`;
+          } else if (currentRegion === 'caribbean' && displayName.toLowerCase() === 'dominican rep.') {
+            displayName = 'Dominican Republic';
+          }
+
+          locationName.textContent = displayName;
+          repName.textContent = rep || regionReps[currentRegion] || 'N/A';
+          sidebarButton.style.display = 'block';
+
+          console.log(`Hovering over ${displayName}, FIPS: ${fipsCode}, Rep: ${rep}, Color: ${repColorMap.get(rep) || regionInitialColors[currentRegion]}, Feature ID: ${feature.id}`);
+
+          if (currentRegion === 'us') {
+            repToCountyIds.forEach((ids, repKey) => {
+              ids.forEach(id => {
+                const isHover = repKey === rep;
+                map.setFeatureState({ source: 'counties', id }, { hover: isHover });
+                console.log(`Setting feature ${id} hover state to ${isHover} for rep ${repKey}`);
+              });
+            });
+          } else {
+            geojson.features.forEach((f, i) => {
+              map.setFeatureState({ source: 'counties', id: i }, { hover: true });
+              console.log(`Setting non-US feature ${i} hover state to true for ${regionReps[currentRegion]}`);
+            });
+          }
+        });
+
+        map.on('mouseleave', 'counties-fill', () => {
+          if (!isHoverEnabled) return;
+          map.getCanvas().style.cursor = '';
+          locationName.textContent = regionHoverText[currentRegion];
+          repName.textContent = 'Find a Representative';
+          sidebarButton.style.display = 'none';
+
+          if (geojson) {
+            geojson.features.forEach((f, i) => {
+              map.setFeatureState({ source: 'counties', id: i }, { hover: false });
+              console.log(`Resetting feature ${i} hover state to false`);
+            });
+          }
+        });
+
+        map.on('click', 'counties-fill', (e) => {
+          if (!map.getSource('counties') || !geojson) {
+            console.warn('No counties source or geojson available');
+            return;
+          }
+          const feature = e.features[0];
+          const featureId = feature.id;
+          const fipsCode = feature.properties.FIPS;
+          const rep = currentRegion === 'us' ? repMap.get(fipsCode) || 'N/A' : regionReps[currentRegion];
+          let displayName = feature.properties.NAME || currentRegion.toUpperCase();
+          if (currentRegion === 'us' && displayName) {
+            displayName = `${displayName} County`;
+          } else if (currentRegion === 'caribbean' && displayName.toLowerCase() === 'dominican rep.') {
+            displayName = 'Dominican Republic';
+          }
+
+          if (selectedCountyId === featureId) {
+            isHoverEnabled = true;
+            selectedCountyId = null;
+            locationName.textContent = regionHoverText[currentRegion];
+            repName.textContent = 'Find a Representative';
+            sidebarButton.style.display = 'none';
+            geojson.features.forEach((f, i) => {
+              map.setFeatureState({ source: 'counties', id: i }, { hover: false });
+            });
+            console.log(`Reverted to hover mode for ${displayName}`);
+          } else {
+            isHoverEnabled = false;
+            selectedCountyId = featureId;
+            locationName.textContent = displayName;
+            repName.textContent = rep || regionReps[currentRegion] || 'N/A';
+            sidebarButton.style.display = 'block';
+
+            geojson.features.forEach((f, i) => {
+              const fFipsCode = f.properties.FIPS;
+              const fRep = currentRegion === 'us' ? repMap.get(fFipsCode) || 'N/A' : regionReps[currentRegion];
+              map.setFeatureState({ source: 'counties', id: i }, { hover: fRep === rep });
+              console.log(`Setting feature ${i} hover state to ${fRep === rep} for rep ${rep}`);
+            });
+            console.log(`Locked selection on ${displayName}, FIPS: ${fipsCode}, Rep: ${rep}`);
+          }
+        });
+
+        map.on('click', (e) => {
+          const features = map.queryRenderedFeatures(e.point, { layers: ['counties-fill'] });
+          if (!features.length && !isMobileDevice()) {
+            console.log('Click outside counties, resetting');
+            isHoverEnabled = true;
+            selectedCountyId = null;
+            locationName.textContent = regionHoverText[currentRegion];
+            repName.textContent = 'Find a Representative';
+            sidebarButton.style.display = 'none';
+            geojson?.features.forEach((f, i) => {
+              map.setFeatureState({ source: 'counties', id: i }, { hover: false });
+            });
+          }
+        });
+      } else {
+        map.on('touchstart', 'counties-fill', (e) => {
+          if (!map.getSource('counties') || !geojson) {
+            console.warn('No counties source or geojson available');
+            return;
+          }
+
+          e.preventDefault();
+          const currentTime = new Date().getTime();
+          const feature = map.queryRenderedFeatures(e.point, { layers: ['counties-fill'] })[0];
+
+          if (!feature) {
+            console.warn('No feature found at touch point');
+            return;
+          }
+
+          const featureId = feature.id;
+          console.log(`Touch on feature ID: ${featureId}`);
+
+          if (currentTime - lastTapTime < doubleTapDelay) {
+            tapCount++;
+          } else {
+            tapCount = 1;
+          }
+          lastTapTime = currentTime;
+
+          if (tapCount === 1) {
+            setTimeout(() => {
+              if (tapCount === 1) {
+                console.log('Single tap detected');
+                isHoverEnabled = false;
+                selectedCountyId = featureId;
+                const fipsCode = feature.properties.FIPS;
+                const rep = currentRegion === 'us' ? repMap.get(fipsCode) || 'N/A' : regionReps[currentRegion];
+                let displayName = feature.properties.NAME || currentRegion.toUpperCase();
+                if (currentRegion === 'us' && displayName) {
+                  displayName = `${displayName} County`;
+                } else if (currentRegion === 'caribbean' && displayName.toLowerCase() === 'dominican rep.') {
+                  displayName = 'Dominican Republic';
+                }
+
+                locationName.textContent = displayName;
+                repName.textContent = rep || regionReps[currentRegion] || 'N/A';
+                sidebarButton.style.display = 'block';
+
+                geojson.features.forEach((f, i) => {
+                  map.setFeatureState({ source: 'counties', id: i }, { hover: i === featureId });
+                });
+              }
+              tapCount = 0;
+            }, doubleTapDelay);
+          } else if (tapCount === 2) {
+            console.log('Double tap detected');
+            isHoverEnabled = false;
+            selectedCountyId = featureId;
+            const fipsCode = feature.properties.FIPS;
+            const rep = currentRegion === 'us' ? repMap.get(fipsCode) || 'N/A' : regionReps[currentRegion];
+            let displayName = feature.properties.NAME || currentRegion.toUpperCase();
+            if (currentRegion === 'us' && displayName) {
+              displayName = `${displayName} County`;
+            } else if (currentRegion === 'caribbean' && displayName.toLowerCase() === 'dominican rep.') {
+              displayName = 'Dominican Republic';
+            }
+
+            locationName.textContent = displayName;
+            repName.textContent = rep || regionReps[currentRegion] || 'N/A';
+            sidebarButton.style.display = 'block';
+
+            geojson.features.forEach((f, i) => {
+              const fFipsCode = f.properties.FIPS;
+              const fRep = currentRegion === 'us' ? repMap.get(fFipsCode) || 'N/A' : regionReps[currentRegion];
+              console.log(`Feature ${i}: FIPS ${fFipsCode}, Rep ${fRep}, Highlight: ${fRep === rep}`);
+              map.setFeatureState({ source: 'counties', id: i }, { hover: fRep === rep });
+            });
+          }
+        });
+
+        map.on('touchstart', (e) => {
+          const features = map.queryRenderedFeatures(e.point, { layers: ['counties-fill'] });
+          if (!features.length) {
+            console.log('Touch outside counties, resetting');
+            isHoverEnabled = true;
+            selectedCountyId = null;
+            locationName.textContent = regionHoverText[currentRegion];
+            repName.textContent = 'Find a Representative';
+            sidebarButton.style.display = 'none';
+            geojson?.features.forEach((f, i) => {
+              map.setFeatureState({ source: 'counties', id: i }, { hover: false });
+            });
+          }
+        });
+      }
+
+      sidebarButton.addEventListener('click', () => {
+        console.log(`Contact button clicked for ${locationName.textContent}, Rep: ${repName.textContent}`);
+        alert(`Contacting representative: ${repName.textContent} for ${locationName.textContent}`);
+      });
+    });
+
+    document.getElementById('region-selector').addEventListener('change', (e) => {
+      currentRegion = e.target.value;
+
+      document.getElementById('us-btn').classList.remove('active', 'inactive');
+      document.getElementById('canada-btn').classList.remove('active', 'inactive');
+      document.getElementById('caribbean-btn').classList.remove('active', 'inactive');
+
+      document.getElementById(`${currentRegion}-btn`).classList.add('active');
+      if (currentRegion !== 'us') document.getElementById('us-btn').classList.add('inactive');
+      if (currentRegion !== 'canada') document.getElementById('canada-btn').classList.add('inactive');
+      if (currentRegion !== 'caribbean') document.getElementById('caribbean-btn').classList.add('inactive');
+
+      map.setMinZoom(regionView[currentRegion].minZoom);
+      if (regionView[currentRegion].maxZoom) {
+        map.setMaxZoom(regionView[currentRegion].maxZoom);
+      } else {
+        map.setMaxZoom(20);
+      }
+
+      isHoverEnabled = true;
+      selectedCountyId = null;
+
+      repToCountyIds.forEach((ids, rep) => {
+        ids.forEach(id => {
+          if (map.getSource('counties')) {
+            map.setFeatureState({ source: 'counties', id }, { hover: false });
+          }
+        });
+      });
+      repToCountyIds.clear();
+      if (map.getLayer('counties-fill')) map.removeLayer('counties-fill');
+      if (map.getLayer('counties-outline')) map.removeLayer('counties-outline');
+      if (map.getLayer('states-outline')) map.removeLayer('states-outline');
+      if (map.getSource('counties')) map.removeSource('counties');
+      if (map.getSource('states')) map.removeSource('states');
+      geojson = null;
+
+      document.getElementById('location-name').textContent = regionHoverText[currentRegion];
+      document.getElementById('rep-name').textContent = 'Find a Representative';
+      document.getElementById('sidebar-button').style.display = 'none';
+
+      loadRegion(currentRegion);
+    });
+
+    function transformCoordinates(geometry, statefp) {
+      const transformPolygon = (coords, scaleX, scaleY, translateX, translateY) => {
+        return coords.map(ring => {
+          return ring.map(coord => {
+            const [x, y] = coord;
+            return [x * scaleX + translateX, y * scaleY + translateY];
+          });
+        });
+      };
+
+      const transformMultiPolygon = (coords, scaleX, scaleY, translateX, translateY) => {
+        return coords.map(polygon => transformPolygon(polygon, scaleX, scaleY, translateX, translateY));
+      };
+
+      if (statefp === '02') {
+        const scaleX = 0.2;
+        const scaleY = 0.4;
+        const translateX = -145;
+        const translateY = 30;
+        if (geometry.type === 'Polygon') {
+          geometry.coordinates = transformPolygon(geometry.coordinates, scaleX, scaleY, translateX, translateY);
+        } else if (geometry.type === 'MultiPolygon') {
+          geometry.coordinates = transformMultiPolygon(geometry.coordinates, scaleX, scaleY, translateX, translateY);
+        }
+      } else if (statefp === '15') {
+        const scale = 1;
+        const translateX = -52;
+        const translateY = 5;
+        if (geometry.type === 'Polygon') {
+          geometry.coordinates = transformPolygon(geometry.coordinates, scale, scale, translateX, translateY);
+        } else if (geometry.type === 'MultiPolygon') {
+          geometry.coordinates = transformMultiPolygon(geometry.coordinates, scale, scale, translateX, translateY);
+        }
+      }
+
+      return geometry;
+    }
+    function clampLat(lat) {
+      return Math.max(-90, Math.min(90, lat));
+    }
+
+    function clampLng(lng) {
+      return Math.max(-180, Math.min(180, lng));
+    }
+
+    function loadRegion(region) {
+      repToCountyIds.clear();
+
+      fetch(regionSources[region])
+        .then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch ${regionSources[region]}`);
+          return res.json();
+        })
+        .then((data) => {
+          geojson = data;
+          const bounds = new maplibregl.LngLatBounds();
+
+          if (region === 'caribbean') {
+            geojson.features = geojson.features.filter(f => f.properties.NAME.toLowerCase() !== 'cuba');
+            geojson.features.forEach(f => {
+              if (f.properties.NAME.toLowerCase() === 'dominican rep.') {
+                f.properties.NAME = 'Dominican Republic';
+              }
+            });
+          }
+
+          geojson.features = geojson.features.filter(feature => {
+            const geometry = feature.geometry;
+
+            if (!geometry || !geometry.type || !geometry.coordinates) {
+              console.warn(`Skipping feature with invalid geometry: ${feature.properties.NAME || 'Unknown'}`);
+              return false;
+            }
+
+            if (region === 'us') {
+              try {
+                feature.geometry.coordinates = convertWebMercatorToWGS84(geometry.coordinates, geometry.type);
+              } catch (err) {
+                console.warn(`Error converting coordinates for feature ${feature.properties.NAME || 'Unknown'}: ${err.message}`);
+                return false;
+              }
+            }
+
+            const coords = geometry.type === 'Polygon'
+              ? geometry.coordinates.flat()
+              : geometry.coordinates.flat(2);
+            coords.forEach(coord => {
+              if (Array.isArray(coord) && coord.length === 2 && typeof coord[0] === 'number' && typeof coord[1] === 'number' && isFinite(coord[0]) && isFinite(coord[1])) {
+                bounds.extend([clampLng(coord[0]), clampLat(coord[1])]);
+              }
+            });
+
+            return true;
+          });
+
+          console.log(`Loading ${region} with ${geojson.features.length} features`);
+
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          const latDiff = ne.lat - sw.lat;
+          const lngDiff = ne.lng - sw.lng;
+
+          const isMobile = isMobileDevice();
+
+          let padding, leftShift, upShift, adjustedCenter, adjustedZoom;
+
+          if (isMobile) {
+            if (region === 'canada') {
+              padding = 1;
+              leftShift = -50;
+              upShift = -30;
+              adjustedCenter = [-100, 60];
+              adjustedZoom = 1;
+            } else if (region === 'caribbean') {
+              padding = 1;
+              leftShift = 20;
+              upShift = -5;
+              adjustedCenter = regionView[region].center;
+              adjustedZoom = regionView[region].zoom;
+            } else {
+              padding = 1.2;
+              leftShift = 2;
+              upShift = -7;
+              adjustedCenter = regionView[region].center;
+              adjustedZoom = regionView[region].zoom;
+            }
+          } else {
+            if (region === 'canada') {
+              padding = 1.5;
+              leftShift = 30;
+              upShift = 14;
+              adjustedCenter = regionView[region].center;
+              adjustedZoom = regionView[region].zoom;
+            } else if (region === 'caribbean') {
+              padding = 0.6;
+              leftShift = 10;
+              upShift = -1;
+              adjustedCenter = regionView[region].center;
+              adjustedZoom = regionView[region].zoom;
+            } else {
+              padding = 0.5;
+              leftShift = 8;
+              upShift = -5;
+              adjustedCenter = regionView[region].center;
+              adjustedZoom = regionView[region].zoom;
+            }
+          }
+
+          bounds.extend([
+            clampLng(sw.lng - lngDiff * padding + leftShift),
+            clampLat(sw.lat - latDiff * padding + upShift)
+          ]);
+          bounds.extend([
+            clampLng(ne.lng + lngDiff * padding + leftShift),
+            clampLat(ne.lat + latDiff * padding + upShift)
+          ]);
+
+          console.log(`Bounds for ${region} (${isMobile ? 'mobile' : 'laptop'}):`, bounds.toArray());
+          map.setMaxBounds(bounds);
+
+          map.jumpTo({
+            center: adjustedCenter,
+            zoom: adjustedZoom
+          });
+
+          geojson.features.forEach((f, i) => {
+            f.id = i;
+            const nameProp = f.properties.NAME;
+            const fipsCode = f.properties.FIPS;
+            if (!nameProp || (region === 'us' && !fipsCode)) {
+              console.warn(`Skipping feature ${i}: Missing NAME or FIPS`);
+              return;
+            }
+
+            f.properties.customGeoID = region === 'us' ? fipsCode : nameProp;
+            const key = region === 'us' ? fipsCode : nameProp;
+            const rep = region === 'us' ? repMap.get(key) || 'N/A' : regionReps[region];
+
+            if (rep) {
+              if (!repColorMap.has(rep)) {
+                repColorMap.set(rep, rep === 'N/A' || rep === '' ? NA_COLOR : repColorMapping[rep] || UNKNOWN_REP_COLOR);
+              }
+              if (!repToCountyIds.has(rep)) repToCountyIds.set(rep, []);
+              repToCountyIds.get(rep).push(i);
+              repMap.set(key, rep);
+              console.log(`Mapped ${key} to rep ${rep} with color ${repColorMap.get(rep)}`);
+            }
+          });
+
+          if (region !== 'us') {
+            const rep = regionReps[region];
+            if (!repColorMap.has(rep)) {
+              repColorMap.set(rep, repColorMapping[rep] || UNKNOWN_REP_COLOR);
+            }
+            geojson.features.forEach((f, i) => {
+              const nameProp = f.properties.NAME;
+              if (nameProp) {
+                repMap.set(nameProp, rep);
+                if (!repToCountyIds.has(rep)) repToCountyIds.set(rep, []);
+                repToCountyIds.get(rep).push(i);
+                console.log(`Non-US: Mapped ${nameProp} to ${rep} with color ${repColorMap.get(rep)}`);
+              }
+            });
+          }
+
+          console.log(`repMap for ${region}:`, Array.from(repMap.entries()));
+          console.log(`repToCountyIds for ${region}:`, Array.from(repMap.entries()));
+
+          if (map.getLayer('counties-fill')) map.removeLayer('counties-fill');
+          if (map.getLayer('counties-outline')) map.removeLayer('counties-outline');
+          if (map.getSource('counties')) map.removeSource('counties');
+          if (region === 'us' && map.getLayer('states-outline')) map.removeLayer('states-outline');
+          if (region === 'us' && map.getSource('states')) map.removeSource('states');
+
+          map.addSource('counties', {
+            type: 'geojson',
+            data: geojson
+          });
+          // NOTE: This is where the geographic data for US state boundaries is fetched.
+// Currently, it uses 'states.geojson' to load state boundaries.
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: GeoJSON FeatureCollection with features containing { STATEFP, NAME, geometry }
+// Ensure the response is parsed to match the current GeoJSON structure: { type: 'FeatureCollection', features: [{ properties: { STATEFP, NAME }, geometry }] }
+
+          if (region === 'us') {
+            fetch('https://raw.githubusercontent.com/karthikeyanasha24/karthikeyanasha24.github.io/main/states.geojson')
+              .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch states.geojson');
+                return res.json();
+              })
+              .then(stateGeojson => {
+                stateGeojson.features = stateGeojson.features.filter(feature => {
+                  const statefp = feature.properties.STATEFP;
+                  const geometry = feature.geometry;
+
+                  if (!geometry || !geometry.type || !geometry.coordinates) {
+                    console.warn(`Skipping state feature with invalid geometry: ${feature.properties.NAME || 'Unknown'}`);
+                    return false;
+                  }
+
+                  try {
+                    feature.geometry.coordinates = convertWebMercatorToWGS84(geometry.coordinates, geometry.type);
+                  } catch (err) {
+                    console.warn(`Error converting coordinates for state ${feature.properties.NAME || 'Unknown'}: ${err.message}`);
+                    return false;
+                  }
+                  return true;
+                });
+
+                map.addSource('states', {
+                  type: 'geojson',
+                  data: stateGeojson
+                });
+
+                map.addLayer({
+                  id: 'states-outline',
+                  type: 'line',
+                  source: 'states',
+                  filter: ['!in', 'STATEFP', '02', '15'],
+                  paint: {
+                    'line-color': '#212120',
+                    'line-width': [
+                      'interpolate',
+                      ['linear'],
+                      ['zoom'],
+                      3, 0.8,
+                      10, 6,
+                      15, 12
+                    ],
+                    'line-opacity': 1
+                  }
+                });
+              })
+              .catch(err => {
+                console.error('Error loading states.geojson:', err);
+              });
+          }
+
+          addCountyLayers(region);
+        })
+        .catch(err => {
+          console.error('Error loading region:', err);
+        });
+    }
+
+    function convertWebMercatorToWGS84(coordinates, geometryType) {
+      const toRad = (deg) => deg * Math.PI / 180;
+      const toDeg = (rad) => rad * 180 / Math.PI;
+
+      const R = 6378137;
+
+      const projectToWGS84 = ([x, y]) => {
+        const lon = toDeg(x / R);
+        const lat = toDeg(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2);
+        return [lon, lat];
+      };
+
+      if (geometryType === 'Polygon') {
+        return coordinates.map(ring => ring.map(projectToWGS84));
+      } else if (geometryType === 'MultiPolygon') {
+        return coordinates.map(polygon => polygon.map(ring => ring.map(projectToWGS84)));
+      }
+      return coordinates;
+    }
+
+    function addCountyLayers(region) {
+      map.addLayer({
+        id: 'counties-fill',
+        type: 'fill',
+        source: 'counties',
+        paint: {
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            region === 'us'
+              ? [
+                'match',
+                ['get', 'customGeoID'],
+                ...Array.from(repMap.entries()).flatMap(([key, rep]) => {
+                  const color = repColorMap.get(rep) || NA_COLOR;
+                  return [key, color];
+                }),
+                NA_COLOR
+              ]
+              : (repColorMap.get(regionReps[region]) || regionInitialColors[region]),
+            region === 'us'
+              ? [
+                'match',
+                ['get', 'REGION_COD'],
+                ...Object.entries(stateGrayMapping).flatMap(([regionCode, grayColor]) => {
+                  return [regionCode, grayColor];
+                }),
+                NA_COLOR
+              ]
+              : regionInitialColors[region]
+          ],
+          'fill-opacity': 0.8
+        }
+      });
+
+      map.addLayer({
+        id: 'counties-outline',
+        type: 'line',
+        source: 'counties',
+        paint: {
+          'line-color': '#212120',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            3, 0.05,
+            10, 2,
+            15, 3
+          ]
+        }
+      });
+    }
+
+    async function loadCSV(fileName) {
+      try {
+        const response = await fetch(fileName);
+        if (!response.ok) throw new Error(`Failed to load CSV file: ${fileName}`);
+        const text = await response.text();
+        return parseCSV(text);
+      } catch (error) {
+        console.error(`Error loading CSV ${fileName}:`, error);
+        return [];
+      }
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const headers = parseCSVLine(lines[0]);
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCSVLine(lines[i]);
+        if (row.length >= headers.length) {
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header] = row[index] || '';
+          });
+          data.push(obj);
+        }
+      }
+      return data;
+    }
+
+    async function lookupZip() {
+      const zipInput = document.getElementById('zipInput').value.trim();
+      const errorMessageDiv = document.getElementById('errorMessage');
+      const resultListDiv = document.getElementById('resultList');
+
+      errorMessageDiv.innerHTML = '';
+      resultListDiv.innerHTML = '';
+
+      if (!/^\d{5}$/.test(zipInput)) {
+        errorMessageDiv.innerHTML = 'Please enter a valid 5-digit ZIP code.';
+        return;
+      }
+
+      // NOTE: This is where the data source for ZIP code to county mapping is fetched.
+// Currently, it uses 'ZIP_COUNTY_122024.csv' to map ZIP codes to counties based on TOT_RATIO.
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: Array of objects with fields like { ZIP, COUNTY, TOT_RATIO }
+// Ensure the response is parsed to match the current CSV structure: { ZIP, COUNTY, TOT_RATIO }
+
+      // Load ZIP_COUNTY_122024.csv to get FIPS code with highest TOT_RATIO
+      const zipData = await loadCSV('ZIP_COUNTY_122024.csv');
+      const zipMatches = zipData.filter(row => row.ZIP === zipInput);
+
+      if (zipMatches.length === 0) {
+        errorMessageDiv.innerHTML = 'We couldn’t find a rep for the ZIP code you entered, but we’ve got you covered! Try entering a different ZIP code, or contact us directly, and we’ll help connect you with the right rep for your area.';
+        return;
+      }
+
+      // Select the FIPS code with the highest TOT_RATIO
+      const bestMatch = zipMatches.reduce((prev, curr) => {
+        const prevRatio = parseFloat(prev.TOT_RATIO) || 0;
+        const currRatio = parseFloat(curr.TOT_RATIO) || 0;
+        return currRatio > prevRatio ? curr : prev;
+      }, zipMatches[0]);
+
+      const fipsCode = `US${bestMatch.COUNTY}`; // COUNTY is the FIPS code in ZIP_COUNTY_122024.csv
+
+      // NOTE: This is where the data source for county and representative assignments is fetched.
+// Currently, it uses 'Zip_Code_County_Assignments_with_FIPS.csv' to get county names and representatives.
+// To switch to a HubSpot table, replace this fetch with an API call to the HubSpot HubDB table.
+// Example HubDB API call: fetch('https://api.hubapi.com/hubdb/api/v2/tables/{tableId}/rows?hapikey={apiKey}')
+// Expected data structure: Array of objects with fields like { fips_code, County, 'MFG Rep' }
+// Ensure the response is parsed to match the current CSV structure: { fips_code, County, 'MFG Rep' }
+
+      // Load Zip_Code_County_Assignments_with_FIPS.csv to get county name and rep
+      const countyData = await loadCSV('Zip_Code_County_Assignments_with_FIPS.csv');
+      const countyMatch = countyData.find(row => row.fips_code === bestMatch.COUNTY);
+
+      let countyName = fipsToCountyMap.get(fipsCode) || (countyMatch ? countyMatch.County : 'Unknown County');
+      if (countyName !== 'Unknown County') {
+        countyName = `${countyName} County`;
+      }
+
+      const rep = countyMatch ? (countyMatch['MFG Rep'] || 'None') : 'None';
+
+      const resultItem = document.createElement('div');
+      resultItem.innerHTML = `County: ${countyName}<br>MFG Rep: ${rep}`;
+      resultListDiv.appendChild(resultItem);
+    }
+
+    function openPopup() {
+      const popupOverlay = document.getElementById('popupOverlay');
+      popupOverlay.style.display = 'flex';
+      resetPopup();
+    }
+
+    function closePopup() {
+      const popupOverlay = document.getElementById('popupOverlay');
+      popupOverlay.style.display = 'none';
+    }
+
+    function resetPopup() {
+      const zipInput = document.getElementById('zipInput');
+      const errorMessageDiv = document.getElementById('errorMessage');
+      const resultListDiv = document.getElementById('resultList');
+
+      zipInput.value = '';
+      errorMessageDiv.innerHTML = '';
+      resultListDiv.innerHTML = '';
+    }
+  </script>
+</body>
+</html>
